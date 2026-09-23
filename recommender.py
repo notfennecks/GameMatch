@@ -144,14 +144,3 @@ if __name__ == "__main__":
             ].to_string(index=False)
         )
  
- 
-       
-recommendations = recommend_games(
-    ["Marvel Rivals"],
-    num_recommendations=3
-)
-print(
-    recommendations[
-        ["name", "similarity_score"]
-    ].to_string(index=False)
-)
