@@ -1,7 +1,18 @@
 import streamlit as st
 
-from recommender import games, recommend_games
+from recommender import initialize_recommender, recommend_games
 
+@st.cache_resource
+def load_recommender():
+    """
+    Load and cache the GameMatch recommendation system.
+    
+    Streamlit will reuse these objects instead of rebuilding
+    the model every time the page reruns.
+    """
+    return initialize_recommender()
+
+games, tfidf, tfidf_matrix = load_recommender()
 
 # ------------------------------------------------------------
 # PAGE CONFIGURATION
@@ -25,45 +36,104 @@ st.write(
     "similar games based on their genres and Steam tags."
 )
 
+if "selected_games" not in st.session_state:
+    st.session_state.selected_games = []
 
 # ------------------------------------------------------------
-# GAME SELECTION
+# GAME SEARCH
 # ------------------------------------------------------------
-
-# Get all game names from the dataset and sort them alphabetically.
-game_names = sorted(
-    games["name"].dropna().unique()
-)
 
 # Allow the user to select multiple games.
-selected_games = st.multiselect(
-    "What games do you like?",
-    options=game_names,
-    placeholder="Search for games..."
-)
+search_query = st.text_input(
+    "Search for a game",
+    placeholder = "Search for games..."
+) 
 
+selected_game = None
 
-# ------------------------------------------------------------
-# RECOMMENDATIONS
-# ------------------------------------------------------------
-
-if st.button("Find Recommendations"):
-
-    if not selected_games:
-
-        st.warning(
-            "Select at least one game first."
+if search_query:
+    
+    matches = games[
+        games["name"].str.contains(
+            search_query,
+            case=False,
+            na=False
         )
-
+    ]
+    
+    matching_names = (
+        matches["name"]
+        .drop_duplicates()
+        .head(10)
+        .tolist()
+    )
+    
+    if matching_names:
+        selected_game = st.selectbox(
+            label="Select a game",
+            options=matching_names,
+            index=None,
+            placeholder="Choose a game..."
+        )
+        if selected_game:
+            if st.button("+ Add game"):
+                if selected_game not in st.session_state.selected_games:
+                    st.session_state.selected_games.append(
+                        selected_game
+                    )
+                    
+                    st.success(
+                        f"Added {selected_game}"
+                    )
+                else:
+                    st.warning(
+                        f"{selected_game} is already added."
+                    )
+        
     else:
+        
+        st.info("No games found.")
+        
+# ------------------------------------------------------------
+# SELECTED GAMES
+# ------------------------------------------------------------
+        
+st.subheader("Your Games")
 
-        recommendations = recommend_games(
-            selected_games,
-            num_recommendations=10
+if st.session_state.selected_games:
+    
+    for game in st.session_state.selected_games:
+        st.write(f" {game}")
+        
+    if st.button("Clear All"):
+        st.session_state.selected_games = []
+        st.rerun()
+else:
+    
+    st.write("No games selected yet.")
+    
+# ------------------------------------------------------------
+# GET RECOMMENDATIONS
+# ------------------------------------------------------------
+        
+if st.button("Find Recommendations"):
+    
+    if not st.session_state.selected_games:
+        
+        st.warning(
+            "Add at least one game first."
         )
-
+        
+    else:
+        recommendations = recommend_games(
+            st.session_state.selected_games,
+            games,
+            tfidf_matrix,
+            num_recommendations=5
+        )
+        
         st.subheader("Recommended Games")
-
+        
         st.dataframe(
             recommendations[
                 [
@@ -73,6 +143,7 @@ if st.button("Find Recommendations"):
                 ]
             ],
             hide_index=True
-        )
+            )
+        
         
 # streamlit run app.py

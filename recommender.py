@@ -33,7 +33,7 @@ def build_model(games):
 
 tfidf, tfidf_matrix = build_model(games)
 
-def find_game(game_name):
+def find_game(game_name, games):
     """
     Find a game in the dataset using a case-insensitive search.
 
@@ -53,12 +53,13 @@ def find_game(game_name):
 
     return matches.index[0]
 
-def recommend_games(game_names, num_recommendations=10):
+def recommend_games(game_names, games, tfidf_matrix, num_recommendations=5):
     """
     Recommend games based on one or more games the user likes.
 
     Args:
-        game_names (list): Names of games the user likes.
+        games (DataFrame): Preprocessed Steam game data.
+        tfidf_matrix (sparse matrix): TF-IDF feature matrix for all games.
         num_recommendations (int): Number of recommendations to return.
 
     Returns:
@@ -70,7 +71,7 @@ def recommend_games(game_names, num_recommendations=10):
     # Find each selected game in the dataset.
     for game_name in game_names:
 
-        game_index = find_game(game_name)
+        game_index = find_game(game_name, games)
 
         if game_index is None:
             print(f"Game '{game_name}' not found.")
@@ -143,4 +144,14 @@ if __name__ == "__main__":
                 ["name", "similarity_score"]
             ].to_string(index=False)
         )
- 
+
+def initialize_recommender():
+    """
+    Load the game data and build the recommendation model
+    """
+    
+    games = prepare_data()
+    
+    tfidf, tfidf_matrix = build_model(games)
+    
+    return games, tfidf, tfidf_matrix
