@@ -88,7 +88,8 @@ if selected_game:
 
     # Prevent duplicate selections.
     if selected_game in st.session_state.selected_games:
-        st.warning(f"{selected_game} is already added.")
+        pass
+        #st.warning(f"{selected_game} is already added.")
 
     # Prevent user from selecting more than the maximum.
     elif len(st.session_state.selected_games) >= MAX_GAMES:

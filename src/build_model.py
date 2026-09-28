@@ -25,8 +25,20 @@ def create_artifacts():
 
     #-------------------------------------
     print("Saving processed games...")
+    
+    games_for_app = games[
+        [
+            "appid",
+            "name",
+            "genres",
+            "developers",
+            "short_description",
+            "header_image"
+        ]
+    ].copy()
+    
 
-    games.to_pickle(
+    games_for_app.to_pickle(
         PROCESSED_DIR / "games_processed.pkl"
     )
     

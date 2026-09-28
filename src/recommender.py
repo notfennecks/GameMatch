@@ -173,12 +173,28 @@ def recommend_games(game_names, games, metadata_matrix, description_matrix, deve
     sorted_indices = np.argsort(similarity_scores)[::-1]
 
     # Remove games the user already selected.
-    top_indices = [
-        index
-        for index in sorted_indices
-        if index not in game_indices
-    ][:num_recommendations]
-
+    top_indices = []
+    seen_names = set()
+    
+    for index in sorted_indices:
+        
+        #Don't recommend a game the user selected.
+        if index in game_indices:
+            continue
+        
+        game_name = games.iloc[index]["name"].strip().lower()
+        
+        #Skip duplicate game titles
+        if game_name in seen_names:
+            continue
+        
+        seen_names.add(game_name)
+        top_indices.append(index)
+        
+        #Stop once we have enough recommendations.
+        if len(top_indices) >= num_recommendations:
+            break
+        
     # Create the recommendation results.
     recommendations = games.iloc[top_indices][
         [
