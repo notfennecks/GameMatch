@@ -3,14 +3,38 @@ import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
-from src.data_preprocessing import prepare_data
+from data_preprocessing import prepare_data
 
 from rapidfuzz import process, fuzz
+
+from pathlib import Path
+import pickle
+
+import pandas as pd
+from scipy.sparse import load_npz
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+PROCESSED_FILE = (
+    BASE_DIR
+    / "data"
+    / "processed"
+    / "games_processed.pkl"
+)
+VECTORIZER_FILE = (
+    BASE_DIR
+    / "models"
+    / "tfidf_vectorizer.pkl"
+)
+MATRIX_FILE = (
+    BASE_DIR
+    / "models"
+    / "tfidf_matrix.npz"
+)
 
 # Load and preprocess the Steam dataset.
 games = prepare_data()
 
-def build_model(games):
+def build_tfidf_model(games):
     """
     Build the TF-IDF feature matrix used by the recommendation engine.
 
@@ -33,7 +57,7 @@ def build_model(games):
 
     return tfidf, tfidf_matrix
 
-tfidf, tfidf_matrix = build_model(games)
+tfidf, tfidf_matrix = build_tfidf_model(games)
 
 def find_game(game_name, games):
     """
@@ -130,12 +154,14 @@ def recommend_games(game_names, games, tfidf_matrix, num_recommendations=5):
 
 def initialize_recommender():
     """
-    Load the game data and build the recommendation model
+    Load the game data and recommendation model
     """
+    games = pd.read_pickle(PROCESSED_FILE)
     
-    games = prepare_data()
-    
-    tfidf, tfidf_matrix = build_model(games)
+    with open(VECTORIZER_FILE, "rb") as file:
+        tfidf = pickle.load(file)
+        
+    tfidf_matrix = load_npz(MATRIX_FILE)
     
     return games, tfidf, tfidf_matrix
 

@@ -1,3 +1,22 @@
+# Virtual environment
 .venv/
-data/raw/
+
+# Python cache
 __pycache__/
+*.pyc
+
+# Raw dataset
+data/raw/
+
+# Generated processed data
+data/processed/
+
+# Generated model artifacts
+models/
+
+# Streamlit
+.streamlit/
+
+# OS files
+.DS_Store
+Thumbs.db

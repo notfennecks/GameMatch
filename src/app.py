@@ -1,6 +1,6 @@
 import streamlit as st
 
-from src.recommender import initialize_recommender, recommend_games, search_games
+from recommender import initialize_recommender, recommend_games, search_games
 
 @st.cache_resource
 def load_recommender():
