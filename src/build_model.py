@@ -17,33 +17,56 @@ MODEL_DIR.mkdir(parents=True, exist_ok=True)
 def create_artifacts():
 
     print("Preparing dataset...")
-
     games = prepare_data()
-
+    
+    #-------------------------------------
     print("Building TF-IDF model...")
+    (metadata_tfidf, metadata_matrix, description_tfidf, description_matrix, developer_tfidf, developer_matrix) = build_tfidf_model(games)
 
-    tfidf, tfidf_matrix = build_tfidf_model(games)
-
+    #-------------------------------------
     print("Saving processed games...")
 
     games.to_pickle(
         PROCESSED_DIR / "games_processed.pkl"
     )
-
+    
+    #-------------------------------------
     print("Saving TF-IDF vectorizer...")
 
     with open(
-        MODEL_DIR / "tfidf_vectorizer.pkl",
+        MODEL_DIR / "metadata_vectorizer.pkl",
         "wb"
     ) as file:
-        pickle.dump(tfidf, file)
+        pickle.dump(metadata_tfidf, file)
+        
+    with open(
+        MODEL_DIR / "description_vectorizer.pkl",
+        "wb"
+    ) as file:
+        pickle.dump(description_tfidf, file)
+        
+    with open(
+        MODEL_DIR / "developer_vectorizer.pkl",
+        "wb"
+    ) as file:
+        pickle.dump(developer_tfidf, file)
 
     print("Saving TF-IDF matrix...")
 
     save_npz(
-        MODEL_DIR / "tfidf_matrix.npz",
-        tfidf_matrix
+        MODEL_DIR / "metadata_matrix.npz",
+       metadata_matrix
     )
+    
+    save_npz(
+            MODEL_DIR / "description_matrix.npz",
+           description_matrix
+        )
+    
+    save_npz(
+            MODEL_DIR / "developer_matrix.npz",
+           developer_matrix
+        )
 
     print("Artifacts successfully created.")
     

@@ -20,15 +20,23 @@ PROCESSED_FILE = (
     / "processed"
     / "games_processed.pkl"
 )
-VECTORIZER_FILE = (
-    BASE_DIR
-    / "models"
-    / "tfidf_vectorizer.pkl"
+METADATA_VECTORIZER_FILE = (
+    BASE_DIR / "models" / "metadata_vectorizer.pkl"
 )
-MATRIX_FILE = (
-    BASE_DIR
-    / "models"
-    / "tfidf_matrix.npz"
+METADATA_MATRIX_FILE = (
+    BASE_DIR / "models" / "metadata_matrix.npz"
+)
+DESCRIPTION_VECTORIZER_FILE = (
+    BASE_DIR / "models" / "description_vectorizer.pkl"
+)
+DESCRIPTION_MATRIX_FILE = (
+    BASE_DIR / "models" / "description_matrix.npz"
+)
+DEVELOPER_VECTORIZER_FILE = (
+    BASE_DIR / "models" / "developer_vectorizer.pkl"
+)
+DEVELOPER_MATRIX_FILE = (
+    BASE_DIR / "models" / "developer_matrix.npz"
 )
 
 # Load and preprocess the Steam dataset.
@@ -46,18 +54,32 @@ def build_tfidf_model(games):
         sparse matrix: Numerical representation of each game.
     """
 
-    # Create the TF-IDF vectorizer.
-    tfidf = TfidfVectorizer()
+    #Genres + tags
+    metadata_tfidf = TfidfVectorizer()
 
     # Learn the vocabulary and convert each game's features
     # into a numerical vector.
-    tfidf_matrix = tfidf.fit_transform(
+    metadata_matrix = metadata_tfidf.fit_transform(
         games["combined_features"]
     )
+    
+    #Short descriptions
+    description_tfidf = TfidfVectorizer(
+        stop_words="english"
+    )
+    
+    description_matrix = description_tfidf.fit_transform(
+        games["short_description"]
+    )
+    
+    #Developers
+    developer_tfidf = TfidfVectorizer()
+    
+    developer_matrix = developer_tfidf.fit_transform(
+        games["developer_features"]
+    )
 
-    return tfidf, tfidf_matrix
-
-tfidf, tfidf_matrix = build_tfidf_model(games)
+    return (metadata_tfidf, metadata_matrix, description_tfidf, description_matrix, developer_tfidf, developer_matrix)
 
 def find_game(game_name, games):
     """
@@ -79,7 +101,7 @@ def find_game(game_name, games):
 
     return matches.index[0]
 
-def recommend_games(game_names, games, tfidf_matrix, num_recommendations=5):
+def recommend_games(game_names, games, metadata_matrix, description_matrix, developer_matrix, num_recommendations=5):
     """
     Recommend games based on one or more games the user likes.
 
@@ -111,18 +133,41 @@ def recommend_games(game_names, games, tfidf_matrix, num_recommendations=5):
         return None
 
     # Retrieve the TF-IDF vectors for the selected games.
-    selected_vectors = tfidf_matrix[game_indices]
-
-    # Average the vectors to create a user preference profile.
-    user_profile = np.asarray(
-        selected_vectors.mean(axis=0)
+    
+    #Genres + tags profile
+    metadata_profile = np.asarray(
+        metadata_matrix[game_indices].mean(axis=0)
+    )
+    #Description profile
+    description_profile = np.asarray(
+        description_matrix[game_indices].mean(axis=0)
+    )
+    #Developer profile
+    developer_profile = np.asarray(
+        developer_matrix[game_indices].mean(axis=0)
     )
 
     # Compare the user profile against every game.
-    similarity_scores = cosine_similarity(
-        user_profile,
-        tfidf_matrix
+    metadata_similarity = cosine_similarity(
+        metadata_profile,
+        metadata_matrix
     ).flatten()
+    
+    description_similarity = cosine_similarity(
+        description_profile,
+        description_matrix
+    ).flatten()
+    
+    developer_similarity = cosine_similarity(
+        developer_profile,
+        developer_matrix
+    ).flatten()
+    
+    similarity_scores = (
+        metadata_similarity * 0.65
+        + description_similarity * 0.25
+        + developer_similarity * 0.10
+    )
 
     # Sort games from most similar to least similar.
     sorted_indices = np.argsort(similarity_scores)[::-1]
@@ -158,12 +203,37 @@ def initialize_recommender():
     """
     games = pd.read_pickle(PROCESSED_FILE)
     
-    with open(VECTORIZER_FILE, "rb") as file:
-        tfidf = pickle.load(file)
-        
-    tfidf_matrix = load_npz(MATRIX_FILE)
+    #Load metadata vectorizer
+    with open(METADATA_VECTORIZER_FILE, "rb") as file:
+        metadata_tfidf = pickle.load(file)
+    #Load description vectorizer    
+    with open(DESCRIPTION_VECTORIZER_FILE, "rb") as file:
+        description_tfidf = pickle.load(file)
+    #Load developer vectorizer
+    with open(DEVELOPER_VECTORIZER_FILE, "rb") as file:
+            developer_tfidf = pickle.load(file)
     
-    return games, tfidf, tfidf_matrix
+    #Load sparse matrices
+    metadata_matrix = load_npz(
+        METADATA_MATRIX_FILE
+    )
+    description_matrix = load_npz(
+        DESCRIPTION_MATRIX_FILE
+    )
+    developer_matrix = load_npz(
+        DEVELOPER_MATRIX_FILE
+    )       
+        
+    
+    return (
+        games,
+        metadata_tfidf,
+        metadata_matrix,
+        description_tfidf,
+        description_matrix,
+        developer_tfidf,
+        developer_matrix
+    )
 
 def search_games(query, games, limit=10):
     """

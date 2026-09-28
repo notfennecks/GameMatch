@@ -121,6 +121,10 @@ def clean_data(df):
     games["short_description"] = (
         games["short_description"].fillna("")
     )
+    
+    games["developers_features"] = games["developers"].apply(
+        combine_developers
+    )
 
     return games
 
@@ -150,6 +154,20 @@ def clean_feature(feature):
 # ------------------------------------------------------------
 # 5. COMBINE FEATURES
 # ------------------------------------------------------------
+def combine_developers(developers):
+    """
+    Convert a list of developers into a single feature string
+    """
+    
+    if not isinstance(developers, list):
+        return ""
+    
+    cleaned_developers = [
+        clean_feature(developer)
+        for developer in developers
+    ]
+    return " ".join(cleaned_developers)
+
 
 def combine_features(row):
     """
@@ -191,11 +209,14 @@ def create_features(games):
         lambda x: list(x.keys()) if isinstance(x, dict) else []
     )
 
-    # Combine genres and tags into a single text feature.
+    # Genre + tag representation
     games["combined_features"] = games.apply(
         combine_features,
         axis=1
     )
+    
+    #Developer representation
+    games["developer_features"] = games["developers"].apply(combine_developers)
 
     return games
 

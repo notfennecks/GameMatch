@@ -12,7 +12,15 @@ def load_recommender():
     """
     return initialize_recommender()
 
-games, tfidf, tfidf_matrix = load_recommender()
+(
+    games, 
+    metadata_tfidf,
+    metadata_matrix, 
+    description_tfidf, 
+    description_matrix,
+    developer_tfidf,
+    developer_matrix
+) = load_recommender()
 
 # ------------------------------------------------------------
 # PAGE CONFIGURATION
@@ -123,7 +131,9 @@ if st.button("Find Recommendations"):
         recommendations = recommend_games(
             st.session_state.selected_games,
             games,
-            tfidf_matrix,
+            metadata_matrix,
+            description_matrix,
+            developer_matrix,
             num_recommendations=6
         )
         
