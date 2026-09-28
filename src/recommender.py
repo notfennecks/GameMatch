@@ -185,6 +185,8 @@ def recommend_games(game_names, games, metadata_matrix, description_matrix, deve
             "appid",
             "name",
             "genres",
+            "developers",
+            "short_description",
             "header_image"
         ]
     ].copy()
@@ -235,7 +237,7 @@ def initialize_recommender():
         developer_matrix
     )
 
-def search_games(query, games, limit=10):
+def search_games(query, game_names, limit=10):
     """
     Search for games using both substring and fuzzy matching.
 
@@ -254,22 +256,15 @@ def search_games(query, games, limit=10):
     if not query:
         return []
     
-    #Get unique game names from the dataset.
-    game_names = games["name"].dropna().drop_duplicates().tolist()
-    
-    #Fist look for normal substring matches.
     substring_matches = [
         name
         for name in game_names
         if query.lower() in name.lower()
     ]
     
-    #If we already have enough good subtring matches,
-    #return those first.
     if len(substring_matches) >= limit:
         return substring_matches[:limit]
     
-    #Use fuzzy matching to find titles similar to the query
     fuzzy_matches = process.extract(
         query,
         game_names,
@@ -280,14 +275,12 @@ def search_games(query, games, limit=10):
     results = substring_matches.copy()
     
     for name, score, _ in fuzzy_matches:
-        
-        #ignore very weak fuzzy matches.
         if score >= 60 and name not in results:
             results.append(name)
-        
-        if len(results) >= limit:
-            break
-        
+            
+            if len(results) >= limit:
+                break
+            
     return results
 
 if __name__ == "__main__":
