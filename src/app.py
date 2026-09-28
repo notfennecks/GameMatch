@@ -1,6 +1,6 @@
 import streamlit as st
 
-from recommender import initialize_recommender, recommend_games
+from src.recommender import initialize_recommender, recommend_games, search_games
 
 @st.cache_resource
 def load_recommender():
@@ -36,6 +36,8 @@ st.write(
     "similar games based on their genres and Steam tags."
 )
 
+MAX_GAMES = 5
+
 if "selected_games" not in st.session_state:
     st.session_state.selected_games = []
 
@@ -53,20 +55,7 @@ selected_game = None
 
 if search_query:
     
-    matches = games[
-        games["name"].str.contains(
-            search_query,
-            case=False,
-            na=False
-        )
-    ]
-    
-    matching_names = (
-        matches["name"]
-        .drop_duplicates()
-        .head(10)
-        .tolist()
-    )
+    matching_names = search_games(search_query, games, limit=10)
     
     if matching_names:
         selected_game = st.selectbox(
@@ -77,33 +66,39 @@ if search_query:
         )
         if selected_game:
             if st.button("+ Add game"):
-                if selected_game not in st.session_state.selected_games:
-                    st.session_state.selected_games.append(
-                        selected_game
-                    )
+                
+                #Prevent duplicate selections.
+                if selected_game in st.session_state.selected_games:
                     
-                    st.success(
-                        f"Added {selected_game}"
-                    )
+                    st.warning( f"{selected_game} is already added.")
+                #Prevent user from selecting more than the maximum.
+                elif len(st.session_state.selected_games) >= MAX_GAMES:
+                    st.warning(f"You can select up to {MAX_GAMES} games.")
+                    
+                #Add the game if it passes both checks.
                 else:
-                    st.warning(
-                        f"{selected_game} is already added."
-                    )
-        
-    else:
-        
-        st.info("No games found.")
+                    st.session_state.selected_games.append(selected_game)
+                    st.rerun()
         
 # ------------------------------------------------------------
 # SELECTED GAMES
 # ------------------------------------------------------------
         
 st.subheader("Your Games")
+st.caption(f"{len(st.session_state.selected_games)} / {MAX_GAMES} games selected")
 
 if st.session_state.selected_games:
     
     for game in st.session_state.selected_games:
-        st.write(f" {game}")
+        #Create two columns:
+        #One for the game title and one for the remove button.
+        game_column, remove_column = st.columns([4, 1])
+        with game_column:
+            st.write(f"🎮 {game}")
+        with remove_column:
+            if st.button("Remove", key=f"remove_{game}"):
+                st.session_state.selected_games.remove(game)
+                st.rerun()
         
     if st.button("Clear All"):
         st.session_state.selected_games = []
@@ -129,21 +124,44 @@ if st.button("Find Recommendations"):
             st.session_state.selected_games,
             games,
             tfidf_matrix,
-            num_recommendations=5
+            num_recommendations=6
         )
         
         st.subheader("Recommended Games")
         
-        st.dataframe(
-            recommendations[
-                [
-                    "name",
-                    "genres",
-                    "similarity_score"
-                ]
-            ],
-            hide_index=True
-            )
+        columns = st.columns(2)
+
+        for index, (_, game) in enumerate(
+            recommendations.iterrows()
+        ):
+
+            column = columns[index % 2]
+
+            with column:
+
+                with st.container(border=True):
+
+                    st.image(
+                        game["header_image"],
+                        use_container_width=True
+                    )
+
+                    st.subheader(game["name"])
+
+                    if isinstance(game["genres"], list):
+                        genres = ", ".join(game["genres"])
+                    else:
+                        genres = str(game["genres"])
+
+                    st.caption(genres)
+
+                    match_percentage = int(
+                        game["similarity_score"] * 100
+                    )
+
+                    st.write(
+                        f"**{match_percentage}% Match Score**"
+                    )
         
         
-# streamlit run app.py
+# streamlit run src/app.py

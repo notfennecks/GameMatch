@@ -3,7 +3,9 @@ import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
-from data_preprocessing import prepare_data
+from src.data_preprocessing import prepare_data
+
+from rapidfuzz import process, fuzz
 
 # Load and preprocess the Steam dataset.
 games = prepare_data()
@@ -113,7 +115,8 @@ def recommend_games(game_names, games, tfidf_matrix, num_recommendations=5):
         [
             "appid",
             "name",
-            "genres"
+            "genres",
+            "header_image"
         ]
     ].copy()
 
@@ -125,26 +128,6 @@ def recommend_games(game_names, games, tfidf_matrix, num_recommendations=5):
 
     return recommendations
 
-if __name__ == "__main__":
-
-    favorite_games = [
-        "ELDEN RING",
-        "The Witcher 3: Wild Hunt",
-        "The Elder Scrolls V: Skyrim"
-    ]
-
-    recommendations = recommend_games(
-        favorite_games,
-        num_recommendations=10
-    )
-
-    if recommendations is not None:
-        print(
-            recommendations[
-                ["name", "similarity_score"]
-            ].to_string(index=False)
-        )
-
 def initialize_recommender():
     """
     Load the game data and build the recommendation model
@@ -155,3 +138,63 @@ def initialize_recommender():
     tfidf, tfidf_matrix = build_model(games)
     
     return games, tfidf, tfidf_matrix
+
+def search_games(query, games, limit=10):
+    """
+    Search for games using both substring and fuzzy matching.
+
+    Args:
+        query (str): User's search text
+        games (DataFrame): Steam game dataset
+        limit (int): Maximum number of results.
+        
+    Returns:
+        list: Matching game titles.
+    """
+    
+    #Normalize the user's input.
+    query = query.strip()
+    
+    if not query:
+        return []
+    
+    #Get unique game names from the dataset.
+    game_names = games["name"].dropna().drop_duplicates().tolist()
+    
+    #Fist look for normal substring matches.
+    substring_matches = [
+        name
+        for name in game_names
+        if query.lower() in name.lower()
+    ]
+    
+    #If we already have enough good subtring matches,
+    #return those first.
+    if len(substring_matches) >= limit:
+        return substring_matches[:limit]
+    
+    #Use fuzzy matching to find titles similar to the query
+    fuzzy_matches = process.extract(
+        query,
+        game_names,
+        scorer=fuzz.WRatio,
+        limit=limit
+    )
+    
+    results = substring_matches.copy()
+    
+    for name, score, _ in fuzzy_matches:
+        
+        #ignore very weak fuzzy matches.
+        if score >= 60 and name not in results:
+            results.append(name)
+        
+        if len(results) >= limit:
+            break
+        
+    return results
+
+if __name__ == "__main__":
+    
+    games, tfidf, tfidf_matrix = initialize_recommender()
+        
